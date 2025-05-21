@@ -4,7 +4,7 @@ import axios from 'axios';
 import { toast, ToastContainer } from 'react-toastify';
 import { useAuth } from '../contexts/AuthContext';
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
 function RouteDetails({ details, scrollRef }) {
   const [isSaved, setIsSaved] = useState(false);

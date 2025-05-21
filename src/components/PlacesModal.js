@@ -18,6 +18,7 @@ function PlacesModal({ station, onClose }) {
   const [places, setPlaces] = useState([]);
   const [loading, setLoading] = useState(true);
   const [placeType, setPlaceType] = useState('tourist_attraction');
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
   useEffect(() => {
     const { lat, lng } = station;
@@ -25,7 +26,7 @@ function PlacesModal({ station, onClose }) {
     const fetchPlaces = async () => {
       setLoading(true);
       try {
-        const res = await axios.get('http://localhost:8000/places', {
+        const res = await axios.get(`${API_BASE_URL}/places`, {
           params: { lat, lng, type: placeType },
         });
 

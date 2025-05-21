@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:8000/itineraries';
+const API_BASE = `${process.env.REACT_APP_API_BASE_URL}/itineraries`;
 
 export async function saveItineraryToBackend(itinerary) {
   try {

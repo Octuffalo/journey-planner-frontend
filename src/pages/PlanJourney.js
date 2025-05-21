@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 const stationNames = stations.map((s) => s.stationName).sort();
 
 function PlanJourney() {
@@ -247,7 +247,6 @@ function PlanJourney() {
                     (cp, i) => (
                       <li key={i}>
                         {cp.locationName} — {cp.scheduledTime}{' '}
-                        {cp.platform ? `(Platform ${cp.platform})` : ''}
                       </li>
                     )
                   )}
