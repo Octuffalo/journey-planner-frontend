@@ -15,6 +15,7 @@ function Home() {
   const [loading, setLoading] = useState(false);
   const detailsRef = useRef(null);
   const suggestionsRef = useRef();
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
   // Fuse.js configuration for fuzzy search
   const fuse = new Fuse(stations, {
@@ -84,7 +85,7 @@ function Home() {
     setLoading(true);
     setDetails(null);
     try {
-      const res = await axios.get(`http://localhost:8000/trains/${crs}`);
+      const res = await axios.get(`${API_BASE_URL}/trains/${crs}`);
       setDepartures(res.data.departures);
     } catch {
       alert('Failed to fetch departures.');
@@ -102,7 +103,7 @@ function Home() {
     } = service;
 
     try {
-      const res = await axios.get(`http://localhost:8000/trains/details/${serviceID}`, {
+      const res = await axios.get(`${API_BASE_URL}/trains/details/${serviceID}`, {
         params: {
           originName: origin,
           scheduledTime: scheduledDeparture,
