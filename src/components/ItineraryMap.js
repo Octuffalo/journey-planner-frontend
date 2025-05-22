@@ -12,19 +12,20 @@ const stationCoords = stations.reduce((acc, station) => {
   return acc;
 }, {});
 
-const ItineraryMap = ({ callingPoints }) => {
-  const points = callingPoints
-    .map((p) => stationCoords[p.locationName])
+const ItineraryMap = ({ callingPoints, legs }) => {
+  // Merge calling points from multiple legs if provided
+  const allPoints = callingPoints
+    || (legs ? legs.flatMap((leg) => leg.callingPoints || []) : []);
+
+  const coords = allPoints
+    .map((cp) => stationCoords[cp.locationName])
     .filter(Boolean);
 
-  if (points.length === 0) return <p className="text-sm text-gray-500">No map available.</p>;
-
-  const bounds = points.map(p => [p.lat, p.lng]);
-  const polyline = bounds;
+  if (coords.length === 0) return <p className="text-sm text-gray-500">No map available.</p>;
 
   return (
     <MapContainer
-      bounds={bounds}
+      bounds={coords.map((p) => [p.lat, p.lng])}
       style={{
         height: '200px',
         width: '100%',
@@ -41,9 +42,13 @@ const ItineraryMap = ({ callingPoints }) => {
         attribution="&copy; OpenStreetMap contributors"
       />
 
-      <Polyline positions={polyline} color="#2e60f5" weight={4} />
+      <Polyline
+        positions={coords.map((p) => [p.lat, p.lng])}
+        color="#2e60f5"
+        weight={4}
+      />
 
-      {points.map((p, i) => (
+      {coords.map((p, i) => (
         <Marker
           key={i}
           position={[p.lat, p.lng]}
@@ -51,13 +56,13 @@ const ItineraryMap = ({ callingPoints }) => {
             iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
             shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
             iconSize: [25, 41],
-            iconAnchor: [12, 41],         // 👈 tip of the pin is the anchor
+            iconAnchor: [12, 41],
             shadowSize: [41, 41],
             shadowAnchor: [12, 41],
           })}
         >
           <Tooltip offset={[0, -30]}>
-            {callingPoints[i].locationName}
+            {allPoints[i].locationName}
           </Tooltip>
         </Marker>
       ))}
