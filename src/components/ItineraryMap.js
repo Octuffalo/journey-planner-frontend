@@ -28,7 +28,7 @@ const ItineraryMap = ({ legs }) => {
   return (
     <MapContainer
       bounds={coords.map((p) => [p.lat, p.lng])}
-      boundsOptions={{ padding: [50, 50] }} // ✅ Zooms out to fit markers better
+      boundsOptions={{ padding: [100, 100] }} // ✅ Zooms out to fit markers better
       style={{
         height: '200px',
         width: '100%',
