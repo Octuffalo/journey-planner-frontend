@@ -2,8 +2,10 @@ import React from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, Tooltip } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+
 import stations from '../data/stations.json';
 
+// Map station names to coordinates
 const stationCoords = stations.reduce((acc, station) => {
   acc[station.stationName] = {
     lat: parseFloat(station.latitude),
@@ -12,20 +14,21 @@ const stationCoords = stations.reduce((acc, station) => {
   return acc;
 }, {});
 
-const ItineraryMap = ({ callingPoints, legs }) => {
-  // Merge calling points from multiple legs if provided
-  const allPoints = callingPoints
-    || (legs ? legs.flatMap((leg) => leg.callingPoints || []) : []);
-
-  const coords = allPoints
+const ItineraryMap = ({ legs }) => {
+  // Flatten calling points across legs and map to coordinates
+  const coords = legs
+    .flatMap((leg) => leg.callingPoints)
     .map((cp) => stationCoords[cp.locationName])
-    .filter(Boolean);
+    .filter(Boolean); // remove any undefined entries
 
-  if (coords.length === 0) return <p className="text-sm text-gray-500">No map available.</p>;
+  if (coords.length === 0) {
+    return <p className="text-sm text-gray-500">No map available.</p>;
+  }
 
   return (
     <MapContainer
       bounds={coords.map((p) => [p.lat, p.lng])}
+      boundsOptions={{ padding: [50, 50] }} // ✅ Zooms out to fit markers better
       style={{
         height: '200px',
         width: '100%',
@@ -42,11 +45,7 @@ const ItineraryMap = ({ callingPoints, legs }) => {
         attribution="&copy; OpenStreetMap contributors"
       />
 
-      <Polyline
-        positions={coords.map((p) => [p.lat, p.lng])}
-        color="#2e60f5"
-        weight={4}
-      />
+      <Polyline positions={coords.map((p) => [p.lat, p.lng])} color="#2e60f5" weight={4} />
 
       {coords.map((p, i) => (
         <Marker
@@ -55,15 +54,10 @@ const ItineraryMap = ({ callingPoints, legs }) => {
           icon={L.icon({
             iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
             shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-            iconSize: [25, 41],
-            iconAnchor: [12, 41],
-            shadowSize: [41, 41],
-            shadowAnchor: [12, 41],
+            iconAnchor: [12, 41], // ✅ Anchor the bottom of the pin to the point
           })}
         >
-          <Tooltip offset={[0, -30]}>
-            {allPoints[i].locationName}
-          </Tooltip>
+          <Tooltip>{legs.flatMap((leg) => leg.callingPoints)[i]?.locationName}</Tooltip>
         </Marker>
       ))}
     </MapContainer>
