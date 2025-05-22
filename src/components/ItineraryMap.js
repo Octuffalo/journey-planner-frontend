@@ -13,24 +13,24 @@ const stationCoords = stations.reduce((acc, station) => {
 }, {});
 
 const ItineraryMap = ({ callingPoints }) => {
-  // Build a unified list of valid calling points with coordinates
-  const geoPoints = callingPoints
-    .map(cp => {
-      const coords = stationCoords[cp.locationName];
-      return coords ? { ...cp, ...coords } : null;
-    })
+  const points = callingPoints
+    .map((p) => stationCoords[p.locationName])
     .filter(Boolean);
 
-  if (geoPoints.length === 0) {
-    return <p className="text-sm text-gray-500">No map available.</p>;
-  }
+  if (points.length === 0) return <p className="text-sm text-gray-500">No map available.</p>;
 
-  const bounds = geoPoints.map(p => [p.lat, p.lng]);
+  const bounds = points.map(p => [p.lat, p.lng]);
+  const polyline = bounds;
 
   return (
     <MapContainer
       bounds={bounds}
-      style={{ height: '250px', width: '100%', borderRadius: '0.5rem', zIndex: 0 }}
+      style={{
+        height: '200px',
+        width: '100%',
+        borderRadius: '0.5rem',
+        zIndex: 0,
+      }}
       scrollWheelZoom={false}
       zoomControl={false}
       dragging={false}
@@ -41,18 +41,24 @@ const ItineraryMap = ({ callingPoints }) => {
         attribution="&copy; OpenStreetMap contributors"
       />
 
-      <Polyline positions={bounds} color="#2e60f5" weight={4} />
+      <Polyline positions={polyline} color="#2e60f5" weight={4} />
 
-      {geoPoints.map((p, i) => (
+      {points.map((p, i) => (
         <Marker
           key={i}
           position={[p.lat, p.lng]}
           icon={L.icon({
             iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
             shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],         // 👈 tip of the pin is the anchor
+            shadowSize: [41, 41],
+            shadowAnchor: [12, 41],
           })}
         >
-          <Tooltip>{p.locationName}</Tooltip>
+          <Tooltip offset={[0, -30]}>
+            {callingPoints[i].locationName}
+          </Tooltip>
         </Marker>
       ))}
     </MapContainer>
