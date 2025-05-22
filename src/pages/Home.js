@@ -17,14 +17,12 @@ function Home() {
   const suggestionsRef = useRef();
   const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
-  // Fuse.js configuration for fuzzy search
   const fuse = new Fuse(stations, {
     keys: ['stationName'],
     threshold: 0.3,
     includeScore: true,
   });
 
-  // Loading itinerary if passed from /saved
   useEffect(() => {
     const loaded = localStorage.getItem('loadedItinerary');
     if (loaded) {
@@ -37,7 +35,6 @@ function Home() {
     }
   }, []);
 
-  // Updating suggestions as user types
   useEffect(() => {
     if (stationInput.trim() === '') {
       setSuggestions([]);
@@ -49,14 +46,12 @@ function Home() {
     setHighlightedIndex(-1);
   }, [stationInput]);
 
-  // Handling station selection from dropdown or keyboard
   const handleStationSelect = (station) => {
     setStationInput(station.stationName);
     setSelectedCrs(station.crsCode);
     setSuggestions([]);
   };
 
-  // Handling Enter key to trigger search
   const handleKeyDown = (e) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
@@ -70,7 +65,7 @@ function Home() {
       } else if (suggestions.length > 0) {
         handleStationSelect(suggestions[0]);
       } else {
-        searchTrains(); // fallback to manual text search
+        searchTrains();
       }
     }
   };
@@ -125,6 +120,9 @@ function Home() {
       <h1 className="text-2xl font-bold mb-4 text-indigo-600">🚉 Journey Planner</h1>
 
       <div className="relative mb-4">
+        <label className="block text-sm font-semibold text-gray-700 mb-1">
+          🚉 Departure Station
+        </label>
         <input
           type="text"
           value={stationInput}
@@ -133,7 +131,7 @@ function Home() {
             setSelectedCrs('');
           }}
           onKeyDown={handleKeyDown}
-          placeholder="Enter station name (e.g., Ipswich)"
+          placeholder="e.g., Ipswich"
           className="border border-gray-300 rounded px-3 py-2 w-full"
         />
         {suggestions.length > 0 && (

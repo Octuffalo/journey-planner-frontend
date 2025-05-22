@@ -12,31 +12,25 @@ const stationCoords = stations.reduce((acc, station) => {
   return acc;
 }, {});
 
-const ItineraryMap = ({ callingPoints, legs }) => {
-  // Merging all callingPoints across legs if provided
-  const allCallingPoints = legs
-    ? legs.flatMap((leg) => leg.callingPoints || [])
-    : callingPoints || [];
-
-  const points = allCallingPoints
-    .map((p) => stationCoords[p.locationName])
+const ItineraryMap = ({ callingPoints }) => {
+  // Build a unified list of valid calling points with coordinates
+  const geoPoints = callingPoints
+    .map(cp => {
+      const coords = stationCoords[cp.locationName];
+      return coords ? { ...cp, ...coords } : null;
+    })
     .filter(Boolean);
 
-  if (points.length === 0)
+  if (geoPoints.length === 0) {
     return <p className="text-sm text-gray-500">No map available.</p>;
+  }
 
-  const bounds = points.map((p) => [p.lat, p.lng]);
-  const polyline = bounds;
+  const bounds = geoPoints.map(p => [p.lat, p.lng]);
 
   return (
     <MapContainer
       bounds={bounds}
-      style={{
-        height: '300px',
-        width: '100%',
-        borderRadius: '0.5rem',
-        zIndex: 0,
-      }}
+      style={{ height: '250px', width: '100%', borderRadius: '0.5rem', zIndex: 0 }}
       scrollWheelZoom={false}
       zoomControl={false}
       dragging={false}
@@ -47,9 +41,9 @@ const ItineraryMap = ({ callingPoints, legs }) => {
         attribution="&copy; OpenStreetMap contributors"
       />
 
-      <Polyline positions={polyline} color="#2e60f5" weight={4} />
+      <Polyline positions={bounds} color="#2e60f5" weight={4} />
 
-      {points.map((p, i) => (
+      {geoPoints.map((p, i) => (
         <Marker
           key={i}
           position={[p.lat, p.lng]}
@@ -58,7 +52,7 @@ const ItineraryMap = ({ callingPoints, legs }) => {
             shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
           })}
         >
-          <Tooltip>{allCallingPoints[i]?.locationName || 'Stop'}</Tooltip>
+          <Tooltip>{p.locationName}</Tooltip>
         </Marker>
       ))}
     </MapContainer>
