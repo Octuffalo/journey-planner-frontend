@@ -120,7 +120,7 @@ function PlanJourney() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <div>
-          <label className="block text-sm font-medium mb-1">From:</label>
+          <label className="block text-sm font-medium mb-1">From (departure):</label>
           <input
             list="stations"
             value={from}
@@ -130,7 +130,7 @@ function PlanJourney() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">To:</label>
+          <label className="block text-sm font-medium mb-1">To (destination):</label>
           <input
             list="stations"
             value={to}
@@ -163,10 +163,7 @@ function PlanJourney() {
 
           <h2 className="text-lg font-semibold mb-2">🗺️ Route Details</h2>
           <p className="text-sm text-gray-600 mb-2">
-            Departure: {result.legs[0].departure} | Arrival:{' '}
-            {result.legs.at(-1).arrival}
-            <br />
-            Operators: {result.legs.map((l) => l.operator).join(', ')}
+            Departure: {result.legs[0].departure} | Arrival: {result.legs.at(-1).arrival}
           </p>
 
           <div className="my-4">
@@ -242,6 +239,9 @@ function PlanJourney() {
                 <h3 className="text-sm font-semibold mb-1">
                   Leg {legIndex + 1}: {getStationName(leg.from)} → {getStationName(leg.to)}
                 </h3>
+                <p className="text-xs text-gray-500 mb-1">
+                  Operator: {leg.operator || 'Unknown'}
+                </p>
                 <ul className="text-sm text-gray-700">
                   {trimCallingPoints(leg.callingPoints, leg.from, leg.to).map(
                     (cp, i) => (
