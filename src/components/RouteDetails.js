@@ -3,27 +3,26 @@ import { motion } from 'framer-motion';
 import axios from 'axios';
 import { toast, ToastContainer } from 'react-toastify';
 import { useAuth } from '../contexts/AuthContext';
+import PlacesModal from './PlacesModal';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
 function RouteDetails({ details, scrollRef }) {
   const [isSaved, setIsSaved] = useState(false);
   const { user } = useAuth();
-
   const [enhancedCallingPoints, setEnhancedCallingPoints] = useState(details.callingPoints);
+  const [showModal, setShowModal] = useState(false);
+  const [selectedStationName, setSelectedStationName] = useState(null);
 
   useEffect(() => {
     if (!details?.serviceID || !user) return;
-
     axios
       .get(`${API_BASE_URL}/itineraries/${user.username}`)
       .then((res) => {
         const found = res.data.find((i) => i.service_id === details.serviceID);
         setIsSaved(!!found);
       })
-      .catch((err) => {
-        console.error('Error checking if itinerary is saved:', err);
-      });
+      .catch((err) => console.error('Error checking if itinerary is saved:', err));
   }, [details, user]);
 
   useEffect(() => {
@@ -92,6 +91,12 @@ function RouteDetails({ details, scrollRef }) {
     }
   };
 
+  const getCoordsByStationName = (name) => {
+    const stations = require('../data/stations.json');
+    const match = stations.find((s) => s.stationName === name);
+    return match ? { lat: parseFloat(match.latitude), lng: parseFloat(match.longitude) } : null;
+  };
+
   return (
     <motion.div
       ref={scrollRef}
@@ -101,7 +106,6 @@ function RouteDetails({ details, scrollRef }) {
       transition={{ duration: 0.3 }}
     >
       <ToastContainer position="bottom-right" autoClose={3000} />
-
       <h2 className="text-xl font-semibold mb-2">Route Details</h2>
       <p><strong>From:</strong> {details.origin}</p>
       <p><strong>To:</strong> {details.destination}</p>
@@ -117,13 +121,29 @@ function RouteDetails({ details, scrollRef }) {
 
       <ul className="mt-2 space-y-1 text-sm text-gray-700">
         {enhancedCallingPoints?.map((point, idx) => (
-          <li key={idx}>
-            <strong>{point.locationName}</strong> — 
-            Scheduled: {point.scheduledTime}, 
-            Estimated: {point.estimatedTime || '—'}
+          <li key={idx} className="flex items-center justify-between">
+            <span>
+              <strong>{point.locationName}</strong> — Scheduled: {point.scheduledTime}, Estimated: {point.estimatedTime || '—'}
+            </span>
+            <button
+              onClick={() => {
+                setSelectedStationName(point.locationName);
+                setShowModal(true);
+              }}
+              className="ml-2 text-xs text-indigo-600 hover:underline"
+            >
+              Nearby
+            </button>
           </li>
         ))}
       </ul>
+
+      {showModal && selectedStationName && (
+        <PlacesModal
+          station={getCoordsByStationName(selectedStationName)}
+          onClose={() => setShowModal(false)}
+        />
+      )}
     </motion.div>
   );
 }
