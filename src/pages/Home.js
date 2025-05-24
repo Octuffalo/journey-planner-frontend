@@ -184,26 +184,30 @@ function Home() {
 
       {details && (
         <div ref={detailsRef} className="mt-6">
-          <RouteDetails details={details} scrollRef={detailsRef} />
-          <div className="mt-4">
-            <h3 className="text-sm font-semibold mb-2">Calling Points</h3>
-            <ul className="text-sm text-gray-700 space-y-1">
-              {details.callingPoints?.map((cp, i) => (
-                <li key={i} className="flex justify-between">
-                  <span>{cp.locationName} — {cp.scheduledTime}</span>
-                  <button
-                    onClick={() => {
-                      setSelectedStationName(cp.locationName);
-                      setShowModal(true);
-                    }}
-                    className="text-xs text-indigo-600 hover:underline"
-                  >
-                    Nearby
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <RouteDetails
+            details={details}
+            scrollRef={detailsRef}
+            extraRender={({ callingPoints }) => (
+              <ul className="text-sm text-gray-700 space-y-1 mt-4">
+                {callingPoints?.map((cp, i) => (
+                  <li key={i} className="flex justify-between">
+                    <span>
+                      {cp.locationName} — {cp.scheduledTime}
+                    </span>
+                    <button
+                      onClick={() => {
+                        setSelectedStationName(cp.locationName);
+                        setShowModal(true);
+                      }}
+                      className="text-xs text-indigo-600 hover:underline"
+                    >
+                      Nearby
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          />
         </div>
       )}
 
