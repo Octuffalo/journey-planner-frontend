@@ -3,6 +3,7 @@ import axios from 'axios';
 import stations from '../data/stations.json';
 import TrainCard from '../components/TrainCard';
 import RouteDetails from '../components/RouteDetails';
+import PlacesModal from '../components/PlacesModal';
 import Fuse from 'fuse.js';
 
 function Home() {
@@ -13,6 +14,9 @@ function Home() {
   const [departures, setDepartures] = useState([]);
   const [details, setDetails] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [selectedStationName, setSelectedStationName] = useState(null);
+
   const detailsRef = useRef(null);
   const suggestionsRef = useRef();
   const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
@@ -71,7 +75,9 @@ function Home() {
   };
 
   const searchTrains = async () => {
-    const crs = selectedCrs || (stations.find(s => s.stationName.toLowerCase() === stationInput.toLowerCase())?.crsCode);
+    const crs =
+      selectedCrs ||
+      stations.find((s) => s.stationName.toLowerCase() === stationInput.toLowerCase())?.crsCode;
     if (!crs) {
       alert('Please select a valid station from the suggestions.');
       return;
@@ -89,13 +95,7 @@ function Home() {
   };
 
   const fetchDetails = async (service) => {
-    const {
-      serviceID,
-      origin,
-      scheduledDeparture,
-      estimatedDeparture,
-      platform,
-    } = service;
+    const { serviceID, origin, scheduledDeparture, estimatedDeparture, platform } = service;
 
     try {
       const res = await axios.get(`${API_BASE_URL}/trains/details/${serviceID}`, {
@@ -115,14 +115,18 @@ function Home() {
     }
   };
 
+  const getCoordsByStationName = (name) => {
+    const match = stations.find(
+      (s) => s.stationName.toLowerCase() === name.toLowerCase()
+    );
+    return match ? { lat: parseFloat(match.latitude), lng: parseFloat(match.longitude) } : null;
+  };
+
   return (
     <div className="max-w-3xl mx-auto bg-white shadow-md rounded-xl p-6 relative">
       <h1 className="text-2xl font-bold mb-4 text-indigo-600">🚉 Journey Planner</h1>
 
       <div className="relative mb-4">
-        <label className="block text-sm font-semibold text-gray-700 mb-1">
-          🚉 Departure Station
-        </label>
         <input
           type="text"
           value={stationInput}
@@ -131,7 +135,7 @@ function Home() {
             setSelectedCrs('');
           }}
           onKeyDown={handleKeyDown}
-          placeholder="e.g., Ipswich"
+          placeholder="Enter departure station name (e.g., Ipswich)"
           className="border border-gray-300 rounded px-3 py-2 w-full"
         />
         {suggestions.length > 0 && (
@@ -168,13 +172,47 @@ function Home() {
           <h2 className="text-xl font-semibold mb-2">Live Departures</h2>
           <ul>
             {departures.map((train, idx) => (
-              <TrainCard key={idx} train={train} onViewDetails={() => fetchDetails(train)} />
+              <TrainCard
+                key={idx}
+                train={train}
+                onViewDetails={() => fetchDetails(train)}
+              />
             ))}
           </ul>
         </div>
       )}
 
-      {details && <RouteDetails details={details} scrollRef={detailsRef} />}
+      {details && (
+        <div ref={detailsRef} className="mt-6">
+          <RouteDetails details={details} scrollRef={detailsRef} />
+          <div className="mt-4">
+            <h3 className="text-sm font-semibold mb-2">Calling Points</h3>
+            <ul className="text-sm text-gray-700 space-y-1">
+              {details.callingPoints?.map((cp, i) => (
+                <li key={i} className="flex justify-between">
+                  <span>{cp.locationName} — {cp.scheduledTime}</span>
+                  <button
+                    onClick={() => {
+                      setSelectedStationName(cp.locationName);
+                      setShowModal(true);
+                    }}
+                    className="text-xs text-indigo-600 hover:underline"
+                  >
+                    Nearby
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+
+      {showModal && selectedStationName && (
+        <PlacesModal
+          station={getCoordsByStationName(selectedStationName)}
+          onClose={() => setShowModal(false)}
+        />
+      )}
     </div>
   );
 }
