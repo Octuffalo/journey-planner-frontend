@@ -11,6 +11,7 @@ const typeIcons = {
   library: '📚',
   church: '⛪',
   tourist_attraction: '📍',
+  shopping_mall: '🛍️',
   default: '📌',
 };
 
@@ -19,6 +20,7 @@ function PlacesModal({ station, onClose }) {
   const [loading, setLoading] = useState(true);
   const [placeType, setPlaceType] = useState('tourist_attraction');
   const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+  const GOOGLE_MAPS_KEY = process.env.REACT_APP_GOOGLE_MAPS_KEY;
 
   useEffect(() => {
     const { lat, lng } = station;
@@ -29,7 +31,6 @@ function PlacesModal({ station, onClose }) {
         const res = await axios.get(`${API_BASE_URL}/places`, {
           params: { lat, lng, type: placeType },
         });
-
         setPlaces(res.data.results || []);
       } catch (err) {
         console.error('Failed to fetch places:', err);
@@ -56,8 +57,8 @@ function PlacesModal({ station, onClose }) {
 
   const photoUrlFor = (place) => {
     const photoRef = place.photos?.[0]?.photo_reference;
-    return photoRef
-      ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photoRef}&key=${process.env.REACT_APP_GOOGLE_MAPS_KEY}`
+    return photoRef && GOOGLE_MAPS_KEY
+      ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photoRef}&key=${GOOGLE_MAPS_KEY}`
       : null;
   };
 
@@ -98,6 +99,7 @@ function PlacesModal({ station, onClose }) {
               <option value="art_gallery">Art Galleries</option>
               <option value="library">Libraries</option>
               <option value="church">Churches</option>
+              <option value="shopping_mall">Shopping</option>
             </select>
           </div>
 
@@ -130,7 +132,7 @@ function PlacesModal({ station, onClose }) {
 
                     <div className="flex-1">
                       <div className="font-semibold text-sm flex items-center gap-1">
-                        <span>{typeIcons[type]}</span>
+                        <span>{typeIcons[type] || typeIcons.default}</span>
                         <span>{place.name}</span>
                       </div>
                       {place.vicinity && (
