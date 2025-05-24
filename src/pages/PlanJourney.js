@@ -5,6 +5,7 @@ import ItineraryMap from '../components/ItineraryMap';
 import { useAuth } from '../contexts/AuthContext';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import PlacesModal from '../components/PlacesModal';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 const stationNames = stations.map((s) => s.stationName).sort();
@@ -21,6 +22,9 @@ function PlanJourney() {
   const [customTags, setCustomTags] = useState('');
   const [customDate, setCustomDate] = useState('');
 
+  const [showModal, setShowModal] = useState(false);
+  const [selectedStationName, setSelectedStationName] = useState(null);
+
   const { user } = useAuth();
 
   const getCRS = (name) => {
@@ -33,6 +37,11 @@ function PlanJourney() {
   const getStationName = (crs) => {
     const match = stations.find((s) => s.crsCode === crs);
     return match ? match.stationName : crs;
+  };
+
+  const getCoordsByStationName = (name) => {
+    const match = stations.find((s) => s.stationName === name);
+    return match ? { lat: parseFloat(match.latitude), lng: parseFloat(match.longitude) } : null;
   };
 
   const trimCallingPoints = (callingPoints, fromCRS, toCRS) => {
@@ -120,7 +129,7 @@ function PlanJourney() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <div>
-          <label className="block text-sm font-medium mb-1">From (departure):</label>
+          <label className="block text-sm font-medium mb-1">From:</label>
           <input
             list="stations"
             value={from}
@@ -130,7 +139,7 @@ function PlanJourney() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">To (destination):</label>
+          <label className="block text-sm font-medium mb-1">To:</label>
           <input
             list="stations"
             value={to}
@@ -163,7 +172,10 @@ function PlanJourney() {
 
           <h2 className="text-lg font-semibold mb-2">🗺️ Route Details</h2>
           <p className="text-sm text-gray-600 mb-2">
-            Departure: {result.legs[0].departure} | Arrival: {result.legs.at(-1).arrival}
+            Departure: {result.legs[0].departure} | Arrival:{' '}
+            {result.legs.at(-1).arrival}
+            <br />
+            Operators: {result.legs.map((l) => l.operator).join(', ')}
           </p>
 
           <div className="my-4">
@@ -239,21 +251,34 @@ function PlanJourney() {
                 <h3 className="text-sm font-semibold mb-1">
                   Leg {legIndex + 1}: {getStationName(leg.from)} → {getStationName(leg.to)}
                 </h3>
-                <p className="text-xs text-gray-500 mb-1">
-                  Operator: {leg.operator || 'Unknown'}
-                </p>
                 <ul className="text-sm text-gray-700">
-                  {trimCallingPoints(leg.callingPoints, leg.from, leg.to).map(
-                    (cp, i) => (
-                      <li key={i}>
-                        {cp.locationName} — {cp.scheduledTime}{' '}
-                      </li>
-                    )
-                  )}
+                  {trimCallingPoints(leg.callingPoints, leg.from, leg.to).map((cp, i) => (
+                    <li key={i} className="flex items-center justify-between">
+                      <span>
+                        {cp.locationName} — {cp.scheduledTime}
+                      </span>
+                      <button
+                        onClick={() => {
+                          setSelectedStationName(cp.locationName);
+                          setShowModal(true);
+                        }}
+                        className="ml-2 text-xs text-indigo-600 hover:underline"
+                      >
+                        Nearby
+                      </button>
+                    </li>
+                  ))}
                 </ul>
               </div>
             ))}
           </div>
+
+          {showModal && selectedStationName && (
+            <PlacesModal
+              station={getCoordsByStationName(selectedStationName)}
+              onClose={() => setShowModal(false)}
+            />
+          )}
         </div>
       )}
     </div>
