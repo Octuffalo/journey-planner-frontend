@@ -3,12 +3,13 @@ import axios from 'axios';
 import stations from '../data/stations.json';
 import TrainCard from '../components/TrainCard';
 import RouteDetails from '../components/RouteDetails';
+import PlacesModal from '../components/PlacesModal';
 import Fuse from 'fuse.js';
 import { useAuth } from '../contexts/AuthContext';
-import { ToastContainer, toast } from 'react-toastify';
+import { toast, ToastContainer } from 'react-toastify';
 import {
   saveItineraryToBackend,
-  fetchItinerariesFromBackend,
+  fetchItinerariesFromBackend
 } from '../services/itineraryService';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -20,6 +21,10 @@ function Home() {
   const [departures, setDepartures] = useState([]);
   const [details, setDetails] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [selectedStationName, setSelectedStationName] = useState(null);
+  const [isSaved, setIsSaved] = useState(false);
+
   const detailsRef = useRef(null);
   const suggestionsRef = useRef();
   const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
@@ -49,7 +54,7 @@ function Home() {
       setHighlightedIndex(-1);
       return;
     }
-    const results = fuse.search(stationInput).map((r) => r.item);
+    const results = fuse.search(stationInput).map(r => r.item);
     setSuggestions(results.slice(0, 8));
     setHighlightedIndex(-1);
   }, [stationInput]);
@@ -81,10 +86,7 @@ function Home() {
   const searchTrains = async () => {
     const crs =
       selectedCrs ||
-      stations.find(
-        (s) => s.stationName.toLowerCase() === stationInput.toLowerCase()
-      )?.crsCode;
-
+      stations.find((s) => s.stationName.toLowerCase() === stationInput.toLowerCase())?.crsCode;
     if (!crs) {
       alert('Please select a valid station from the suggestions.');
       return;
@@ -102,13 +104,7 @@ function Home() {
   };
 
   const fetchDetails = async (service) => {
-    const {
-      serviceID,
-      origin,
-      scheduledDeparture,
-      estimatedDeparture,
-      platform,
-    } = service;
+    const { serviceID, origin, scheduledDeparture, estimatedDeparture, platform } = service;
 
     try {
       const res = await axios.get(`${API_BASE_URL}/trains/details/${serviceID}`, {
@@ -119,25 +115,24 @@ function Home() {
           platform,
         },
       });
-      const fullData = { ...res.data, serviceID };
-      setDetails(fullData);
+      const newDetails = { ...res.data, serviceID };
+      setDetails(newDetails);
       setTimeout(() => {
         detailsRef.current?.scrollIntoView({ behavior: 'smooth' });
       }, 100);
 
+      // Check if itinerary is already saved
       if (user) {
         const saved = await fetchItinerariesFromBackend();
-        const alreadySaved = saved.some((i) => i.service_id === serviceID);
-        if (alreadySaved) {
-          toast.info('ℹ️ This itinerary is already saved.');
-        }
+        const found = saved.some(i => i.service_id === newDetails.serviceID);
+        setIsSaved(found);
       }
     } catch {
       alert('Could not load service details.');
     }
   };
 
-  const saveDetailsAsItinerary = async () => {
+  const saveItinerary = async () => {
     if (!user || !details) {
       toast.error('You must be logged in to save an itinerary.');
       return;
@@ -155,16 +150,20 @@ function Home() {
       planned_date: null,
     };
 
-    try {
-      const saved = await saveItineraryToBackend(toSave);
-      if (saved) {
-        toast.success('✅ Itinerary saved!');
-      } else {
-        throw new Error();
-      }
-    } catch {
+    const result = await saveItineraryToBackend(toSave);
+    if (result) {
+      setIsSaved(true);
+      toast.success('✅ Itinerary saved!');
+    } else {
       toast.error('❌ Failed to save itinerary.');
     }
+  };
+
+  const getCoordsByStationName = (name) => {
+    const match = stations.find(
+      (s) => s.stationName.toLowerCase() === name.toLowerCase()
+    );
+    return match ? { lat: parseFloat(match.latitude), lng: parseFloat(match.longitude) } : null;
   };
 
   return (
@@ -173,7 +172,6 @@ function Home() {
       <h1 className="text-2xl font-bold mb-4 text-indigo-600">🚉 Journey Planner</h1>
 
       <div className="relative mb-4">
-        <label className="block text-sm font-medium mb-1">Departure Station</label>
         <input
           type="text"
           value={stationInput}
@@ -182,7 +180,7 @@ function Home() {
             setSelectedCrs('');
           }}
           onKeyDown={handleKeyDown}
-          placeholder="Enter station name (e.g., Ipswich)"
+          placeholder="Enter departure station name (e.g., Ipswich)"
           className="border border-gray-300 rounded px-3 py-2 w-full"
         />
         {suggestions.length > 0 && (
@@ -219,24 +217,35 @@ function Home() {
           <h2 className="text-xl font-semibold mb-2">Live Departures</h2>
           <ul>
             {departures.map((train, idx) => (
-              <TrainCard key={idx} train={train} onViewDetails={() => fetchDetails(train)} />
+              <TrainCard
+                key={idx}
+                train={train}
+                onViewDetails={() => fetchDetails(train)}
+              />
             ))}
           </ul>
         </div>
       )}
 
       {details && (
-        <div ref={detailsRef} className="mt-6 border-t pt-4">
-          <RouteDetails details={details} />
-          {user && (
+        <div ref={detailsRef} className="mt-6">
+          <RouteDetails details={details} scrollRef={detailsRef} />
+          {user && !isSaved && (
             <button
-              onClick={saveDetailsAsItinerary}
+              onClick={saveItinerary}
               className="mt-4 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
             >
               💾 Save Itinerary
             </button>
           )}
         </div>
+      )}
+
+      {showModal && selectedStationName && (
+        <PlacesModal
+          station={getCoordsByStationName(selectedStationName)}
+          onClose={() => setShowModal(false)}
+        />
       )}
     </div>
   );
