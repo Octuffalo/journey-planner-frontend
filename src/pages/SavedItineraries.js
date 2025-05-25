@@ -1,14 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { toast, ToastContainer } from 'react-toastify';
 import { useAuth } from '../contexts/AuthContext';
 import 'react-toastify/dist/ReactToastify.css';
 import stations from '../data/stations.json';
 import PlacesModal from '../components/PlacesModal';
-import { getCoordsByStationName } from '../utils/getStationCoords';
 import ItineraryMap from '../components/ItineraryMap';
+import { getCoordsByStationName } from '../utils/getStationCoords';
+
+import {
+  fetchItinerariesFromBackend,
+  saveItineraryToBackend,
+  deleteItinerary,
+  updateItinerary,
+} from '../services/itineraryService';
 
 const stationCoords = stations.reduce((acc, station) => {
   acc[station.stationName] = {
@@ -17,8 +23,6 @@ const stationCoords = stations.reduce((acc, station) => {
   };
   return acc;
 }, {});
-
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
 function calculateDuration(callingPoints) {
   if (!callingPoints || callingPoints.length < 2) return null;
@@ -58,8 +62,8 @@ function SavedItineraries() {
 
   const refresh = () => {
     if (!user) return;
-    axios.get(`${API_BASE_URL}/itineraries/${user.username}`).then((res) => {
-      const sorted = sortItineraries(res.data, sortMode);
+    fetchItinerariesFromBackend().then((res) => {
+      const sorted = sortItineraries(res, sortMode);
       setSaved(sorted);
     });
   };
@@ -79,9 +83,9 @@ function SavedItineraries() {
     });
   };
 
-  const deleteItinerary = (id) => {
+  const deleteItineraryHandler = (id) => {
     const deleted = saved.find((i) => i.id === id);
-    axios.delete(`${API_BASE_URL}/itineraries/${id}`).then(() => {
+    deleteItinerary(id).then(() => {
       toast.info('🗑️ Itinerary removed.');
       setLastDeleted(deleted);
       refresh();
@@ -90,7 +94,7 @@ function SavedItineraries() {
 
   const undoDelete = () => {
     if (lastDeleted) {
-      axios.post(`${API_BASE_URL}/itineraries/`, lastDeleted).then(() => {
+      saveItineraryToBackend(lastDeleted).then(() => {
         toast.success('✅ Itinerary restored.');
         setLastDeleted(null);
         refresh();
@@ -100,7 +104,7 @@ function SavedItineraries() {
 
   const clearAll = () => {
     if (window.confirm('Are you sure you want to clear all saved itineraries?')) {
-      Promise.all(saved.map((item) => axios.delete(`${API_BASE_URL}/itineraries/${item.id}`))).then(() => {
+      Promise.all(saved.map((item) => deleteItinerary(item.id))).then(() => {
         toast.success('🧹 All itineraries cleared.');
         setSaved([]);
       });
@@ -110,7 +114,7 @@ function SavedItineraries() {
   const renameItinerary = (id, newName) => {
     const target = saved.find((i) => i.id === id);
     if (target) {
-      axios.post(`${API_BASE_URL}/itineraries/`, { ...target, name: newName }).then(() => {
+      updateItinerary(target.service_id, { name: newName }).then(() => {
         toast.success('✅ Name updated.');
         setEditingName(null);
         setEditedName('');
@@ -123,7 +127,7 @@ function SavedItineraries() {
     const tags = newTags.split(',').map((t) => t.trim()).filter(Boolean);
     const target = saved.find((i) => i.id === id);
     if (target) {
-      axios.post(`${API_BASE_URL}/itineraries/`, { ...target, tags }).then(() => {
+      updateItinerary(target.service_id, { tags }).then(() => {
         toast.success('✅ Tags updated.');
         setEditingTags(null);
         setEditedTags('');
@@ -135,7 +139,7 @@ function SavedItineraries() {
   const updateDate = (id, date) => {
     const target = saved.find((i) => i.id === id);
     if (target) {
-      axios.post(`${API_BASE_URL}/itineraries/`, { ...target, planned_date: date }).then(() => {
+      updateItinerary(target.service_id, { planned_date: date }).then(() => {
         toast.success('📅 Travel date updated.');
         setEditingDate(null);
         setEditedDate('');
@@ -196,38 +200,24 @@ function SavedItineraries() {
             const title = item.name || `${item.origin} → ${item.destination}`;
             const tags = item.tags || [];
             const duration = calculateDuration(item.calling_points);
-            const allPoints = item.calling_points.map(p => encodeURIComponent(p.locationName)).join('|');
-            const pathCoords = item.calling_points
-              .map(p => {
-                const coords = stationCoords[p.locationName];
-                return coords ? `${coords.lat},${coords.lng}` : null;
-              })
-              .filter(Boolean)
-              .join('|');
-            const originCoords = stationCoords[item.origin];
-            const destinationCoords = stationCoords[item.destination];
-
-            const directionsUrl = originCoords && destinationCoords
-              ? `https://www.google.com/maps/dir/${originCoords.lat},${originCoords.lng}/${destinationCoords.lat},${destinationCoords.lng}`
-              : '#';
 
             return (
               <motion.li key={item.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="border-b pb-4">
-                {/* Title */}
-                {editingName === item.id ? (
-                  <div className="mb-2 flex items-center gap-2">
-                    <input value={editedName} onChange={(e) => setEditedName(e.target.value)} className="border p-1 rounded w-full" placeholder="Trip name" />
-                    <button onClick={() => renameItinerary(item.id, editedName)} className="text-sm text-green-600 hover:underline">✅ Save</button>
-                    <button onClick={() => setEditingName(null)} className="text-sm text-gray-500 hover:underline">❌ Cancel</button>
-                  </div>
-                ) : (
-                  <div className="font-semibold flex justify-between items-center">
-                    <span>{title}</span>
-                    <button onClick={() => { setEditingName(item.id); setEditedName(item.name || ''); }} className="text-xs text-indigo-500 hover:underline ml-2">✏️ Rename</button>
-                  </div>
-                )}
+                <div className="font-semibold flex justify-between items-center">
+                  {editingName === item.id ? (
+                    <div className="flex gap-2 w-full">
+                      <input value={editedName} onChange={(e) => setEditedName(e.target.value)} className="border p-1 rounded w-full" placeholder="Trip name" />
+                      <button onClick={() => renameItinerary(item.id, editedName)} className="text-sm text-green-600 hover:underline">✅</button>
+                      <button onClick={() => setEditingName(null)} className="text-sm text-gray-500 hover:underline">❌</button>
+                    </div>
+                  ) : (
+                    <>
+                      <span>{title}</span>
+                      <button onClick={() => { setEditingName(item.id); setEditedName(item.name || ''); }} className="text-xs text-indigo-500 hover:underline ml-2">✏️ Rename</button>
+                    </>
+                  )}
+                </div>
 
-                {/* Tags */}
                 <div className="mt-1 text-sm text-gray-600 flex flex-wrap gap-2">
                   {tags.length > 0 ? tags.map((tag, i) => (
                     <span key={i} className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full text-xs">#{tag}</span>
@@ -237,20 +227,19 @@ function SavedItineraries() {
                   {editingTags === item.id ? (
                     <div className="w-full flex items-center mt-2 gap-2">
                       <input value={editedTags} onChange={(e) => setEditedTags(e.target.value)} className="border p-1 rounded w-full" placeholder="e.g. Holiday, Work" />
-                      <button onClick={() => editTags(item.id, editedTags)} className="text-xs text-green-600 hover:underline">✅ Save</button>
-                      <button onClick={() => setEditingTags(null)} className="text-xs text-gray-500 hover:underline">❌ Cancel</button>
+                      <button onClick={() => editTags(item.id, editedTags)} className="text-xs text-green-600 hover:underline">✅</button>
+                      <button onClick={() => setEditingTags(null)} className="text-xs text-gray-500 hover:underline">❌</button>
                     </div>
                   ) : (
                     <button onClick={() => { setEditingTags(item.id); setEditedTags(tags.join(', ')); }} className="text-xs text-indigo-500 hover:underline">✏️ Edit Tags</button>
                   )}
                 </div>
 
-                {/* Date */}
                 {editingDate === item.id ? (
                   <div className="mt-1 flex items-center gap-2">
                     <input type="date" value={editedDate} onChange={(e) => setEditedDate(e.target.value)} className="border p-1 rounded text-sm" />
-                    <button onClick={() => updateDate(item.id, editedDate)} className="text-xs text-green-600 hover:underline">✅ Save</button>
-                    <button onClick={() => setEditingDate(null)} className="text-xs text-gray-500 hover:underline">❌ Cancel</button>
+                    <button onClick={() => updateDate(item.id, editedDate)} className="text-xs text-green-600 hover:underline">✅</button>
+                    <button onClick={() => setEditingDate(null)} className="text-xs text-gray-500 hover:underline">❌</button>
                   </div>
                 ) : item.planned_date ? (
                   <div className="text-sm text-gray-600 mt-1 flex items-center gap-2">
@@ -263,12 +252,10 @@ function SavedItineraries() {
                   </div>
                 )}
 
-                {/* Duration */}
                 {duration && (
                   <div className="text-sm text-gray-500 mt-1">Estimated duration: {duration}</div>
                 )}
 
-                {/* Map and route */}
                 <div className="my-3">
                   <ItineraryMap callingPoints={item.calling_points} />
                 </div>
@@ -287,9 +274,8 @@ function SavedItineraries() {
                   ))}
                 </ul>
 
-
                 <div className="mt-2 flex gap-4">
-                  <button onClick={() => deleteItinerary(item.id)} className="text-red-600 text-sm hover:underline">❌ Remove</button>
+                  <button onClick={() => deleteItineraryHandler(item.id)} className="text-red-600 text-sm hover:underline">❌ Remove</button>
                 </div>
               </motion.li>
             );
@@ -302,7 +288,7 @@ function SavedItineraries() {
           station={getCoordsByStationName(selectedStationName)}
           onClose={() => setShowModal(false)}
         />
-    )}
+      )}
     </div>
   );
 }
