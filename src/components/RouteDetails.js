@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import axios from 'axios';
 import { toast, ToastContainer } from 'react-toastify';
 import { useAuth } from '../contexts/AuthContext';
 import PlacesModal from './PlacesModal';
-
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+import {
+  saveItineraryToBackend,
+  deleteItinerary,
+  fetchItinerariesFromBackend
+} from '../services/itineraryService';
 
 function RouteDetails({ details, scrollRef }) {
   const [isSaved, setIsSaved] = useState(false);
@@ -15,14 +17,18 @@ function RouteDetails({ details, scrollRef }) {
   const [selectedStationName, setSelectedStationName] = useState(null);
 
   useEffect(() => {
-    if (!details?.serviceID || !user) return;
-    axios
-      .get(`${API_BASE_URL}/itineraries/${user.username}`)
-      .then((res) => {
-        const found = res.data.find((i) => i.service_id === details.serviceID);
+    const checkIfSaved = async () => {
+      if (!details?.serviceID || !user) return;
+      try {
+        const saved = await fetchItinerariesFromBackend();
+        const found = saved.find((i) => i.service_id === details.serviceID);
         setIsSaved(!!found);
-      })
-      .catch((err) => console.error('Error checking if itinerary is saved:', err));
+      } catch (err) {
+        console.error('Error checking if itinerary is saved:', err);
+      }
+    };
+
+    checkIfSaved();
   }, [details, user]);
 
   useEffect(() => {
@@ -63,9 +69,13 @@ function RouteDetails({ details, scrollRef }) {
     };
 
     try {
-      await axios.post(`${API_BASE_URL}/itineraries/`, toSave);
-      setIsSaved(true);
-      toast.success('✅ Itinerary saved!');
+      const saved = await saveItineraryToBackend(toSave);
+      if (saved) {
+        setIsSaved(true);
+        toast.success('✅ Itinerary saved!');
+      } else {
+        throw new Error();
+      }
     } catch (error) {
       console.error(error);
       toast.error('❌ Failed to save itinerary.');
@@ -76,10 +86,10 @@ function RouteDetails({ details, scrollRef }) {
     if (!user) return;
 
     try {
-      const res = await axios.get(`${API_BASE_URL}/itineraries/${user.username}`);
-      const match = res.data.find((i) => i.service_id === details.serviceID);
+      const saved = await fetchItinerariesFromBackend();
+      const match = saved.find((i) => i.service_id === details.serviceID);
       if (match?.id) {
-        await axios.delete(`${API_BASE_URL}/itineraries/${match.id}`);
+        await deleteItinerary(match.id);
         setIsSaved(false);
         toast.info('🗑️ Itinerary removed.');
       } else {
