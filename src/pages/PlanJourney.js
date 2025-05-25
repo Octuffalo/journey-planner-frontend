@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import stations from '../data/stations.json';
 import ItineraryMap from '../components/ItineraryMap';
 import { useAuth } from '../contexts/AuthContext';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import PlacesModal from '../components/PlacesModal';
+import { saveItineraryToBackend } from '../services/itineraryService';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 const stationNames = stations.map((s) => s.stationName).sort();
@@ -74,13 +74,13 @@ function PlanJourney() {
     }
 
     try {
-      const res = await axios.get(`${API_BASE_URL}/optimal-route`, {
-        params: { from: fromCRS, to: toCRS },
-      });
-      setResult(res.data);
+      const res = await fetch(`${API_BASE_URL}/optimal-route?from=${fromCRS}&to=${toCRS}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Failed to find route');
+      setResult(data);
     } catch (err) {
       console.error(err);
-      setError(err.response?.data?.detail || 'Unable to find a route.');
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -111,12 +111,16 @@ function PlanJourney() {
     };
 
     try {
-      await axios.post(`${API_BASE_URL}/itineraries/`, itinerary);
-      setIsSaved(true);
-      toast.success('✅ Journey saved!');
-      setCustomName('');
-      setCustomTags('');
-      setCustomDate('');
+      const saved = await saveItineraryToBackend(itinerary);
+      if (saved) {
+        setIsSaved(true);
+        toast.success('✅ Journey saved!');
+        setCustomName('');
+        setCustomTags('');
+        setCustomDate('');
+      } else {
+        throw new Error();
+      }
     } catch (error) {
       console.error(error);
       toast.error('❌ Failed to save journey.');
@@ -125,6 +129,8 @@ function PlanJourney() {
 
   return (
     <div className="max-w-2xl mx-auto mt-6 p-6 bg-white shadow-md rounded-xl">
+      <ToastContainer position="bottom-right" autoClose={3000} />
+
       <h1 className="text-xl font-bold text-indigo-600 mb-4">📍 Plan a Journey</h1>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
@@ -168,8 +174,6 @@ function PlanJourney() {
 
       {result && (
         <div className="mt-6 border-t pt-4">
-          <ToastContainer position="bottom-right" autoClose={3000} />
-
           <h2 className="text-lg font-semibold mb-2">🗺️ Route Details</h2>
           <p className="text-sm text-gray-600 mb-2">
             Departure: {result.legs[0].departure} | Arrival:{' '}
@@ -236,9 +240,7 @@ function PlanJourney() {
               <button
                 onClick={saveJourney}
                 disabled={isSaved}
-                className={`w-full mt-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm ${
-                  isSaved ? 'opacity-60 cursor-not-allowed' : ''
-                }`}
+                className={`w-full mt-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm ${isSaved ? 'opacity-60 cursor-not-allowed' : ''}`}
               >
                 {isSaved ? '✅ Journey Saved' : '💾 Save This Journey'}
               </button>
@@ -254,9 +256,7 @@ function PlanJourney() {
                 <ul className="text-sm text-gray-700">
                   {trimCallingPoints(leg.callingPoints, leg.from, leg.to).map((cp, i) => (
                     <li key={i} className="flex items-center justify-between">
-                      <span>
-                        {cp.locationName} — {cp.scheduledTime}
-                      </span>
+                      <span>{cp.locationName} — {cp.scheduledTime}</span>
                       <button
                         onClick={() => {
                           setSelectedStationName(cp.locationName);
