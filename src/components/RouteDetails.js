@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import axios from 'axios';
 import { toast, ToastContainer } from 'react-toastify';
 import { useAuth } from '../contexts/AuthContext';
 import PlacesModal from './PlacesModal';
-import {
-  saveItineraryToBackend,
-  deleteItinerary,
-  fetchItinerariesFromBackend
-} from '../services/itineraryService';
+
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
 function RouteDetails({ details, scrollRef }) {
   const [isSaved, setIsSaved] = useState(false);
@@ -17,18 +15,18 @@ function RouteDetails({ details, scrollRef }) {
   const [selectedStationName, setSelectedStationName] = useState(null);
 
   useEffect(() => {
-    const checkIfSaved = async () => {
-      if (!details?.serviceID || !user) return;
-      try {
-        const saved = await fetchItinerariesFromBackend();
-        const found = saved.find((i) => i.service_id === details.serviceID);
+    if (!details?.serviceID || !user) return;
+    axios
+      .get(`${API_BASE_URL}/itineraries/me`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      })
+      .then((res) => {
+        const found = res.data.find((i) => i.service_id === details.serviceID);
         setIsSaved(!!found);
-      } catch (err) {
-        console.error('Error checking if itinerary is saved:', err);
-      }
-    };
-
-    checkIfSaved();
+      })
+      .catch((err) => console.error('Error checking if itinerary is saved:', err));
   }, [details, user]);
 
   useEffect(() => {
@@ -69,13 +67,13 @@ function RouteDetails({ details, scrollRef }) {
     };
 
     try {
-      const saved = await saveItineraryToBackend(toSave);
-      if (saved) {
-        setIsSaved(true);
-        toast.success('✅ Itinerary saved!');
-      } else {
-        throw new Error();
-      }
+      await axios.post(`${API_BASE_URL}/itineraries/`, toSave, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+      setIsSaved(true);
+      toast.success('✅ Itinerary saved!');
     } catch (error) {
       console.error(error);
       toast.error('❌ Failed to save itinerary.');
@@ -86,10 +84,18 @@ function RouteDetails({ details, scrollRef }) {
     if (!user) return;
 
     try {
-      const saved = await fetchItinerariesFromBackend();
-      const match = saved.find((i) => i.service_id === details.serviceID);
+      const res = await axios.get(`${API_BASE_URL}/itineraries/me`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+      const match = res.data.find((i) => i.service_id === details.serviceID);
       if (match?.id) {
-        await deleteItinerary(match.id);
+        await axios.delete(`${API_BASE_URL}/itineraries/${match.id}`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+          },
+        });
         setIsSaved(false);
         toast.info('🗑️ Itinerary removed.');
       } else {
@@ -120,14 +126,16 @@ function RouteDetails({ details, scrollRef }) {
       <p><strong>From:</strong> {details.origin}</p>
       <p><strong>To:</strong> {details.destination}</p>
 
-      <button
-        onClick={isSaved ? removeItinerary : saveItinerary}
-        className={`mt-3 mb-4 px-4 py-2 text-white rounded text-sm transition ${
-          isSaved ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'
-        }`}
-      >
-        {isSaved ? '❌ Remove Itinerary' : '💾 Save Itinerary'}
-      </button>
+      {user && (
+        <button
+          onClick={isSaved ? removeItinerary : saveItinerary}
+          className={`mt-3 mb-4 px-4 py-2 text-white rounded text-sm transition ${
+            isSaved ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'
+          }`}
+        >
+          {isSaved ? '❌ Remove Itinerary' : '💾 Save Itinerary'}
+        </button>
+      )}
 
       <ul className="mt-2 space-y-1 text-sm text-gray-700">
         {enhancedCallingPoints?.map((point, idx) => (

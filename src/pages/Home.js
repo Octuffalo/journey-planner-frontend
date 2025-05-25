@@ -230,14 +230,6 @@ function Home() {
       {details && (
         <div ref={detailsRef} className="mt-6">
           <RouteDetails details={details} scrollRef={detailsRef} />
-          {user && !isSaved && (
-            <button
-              onClick={saveItinerary}
-              className="mt-4 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-            >
-              💾 Save Itinerary
-            </button>
-          )}
         </div>
       )}
 
