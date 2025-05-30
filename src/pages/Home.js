@@ -121,7 +121,7 @@ function Home() {
         detailsRef.current?.scrollIntoView({ behavior: 'smooth' });
       }, 100);
 
-      // Check if itinerary is already saved
+      // Checking if itinerary is already saved
       if (user) {
         const saved = await fetchItinerariesFromBackend();
         const found = saved.some(i => i.service_id === newDetails.serviceID);

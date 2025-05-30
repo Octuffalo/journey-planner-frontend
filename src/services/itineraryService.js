@@ -1,6 +1,6 @@
 const API_BASE = process.env.REACT_APP_API_BASE_URL + "/itineraries";
 
-// Get auth headers including JWT from localStorage
+// Getting auth headers including JWT from localStorage
 function getAuthHeaders() {
   const token = localStorage.getItem('token');
   return {
@@ -9,7 +9,7 @@ function getAuthHeaders() {
   };
 }
 
-// Save a new itinerary or update if exists
+// Saving a new itinerary or updating if exists
 export async function saveItineraryToBackend(itinerary) {
   try {
     const res = await fetch(`${API_BASE}/`, {
@@ -25,7 +25,7 @@ export async function saveItineraryToBackend(itinerary) {
   }
 }
 
-// Fetch all itineraries for the current authenticated user
+// Fetching all itineraries for the current authenticated user
 export async function fetchItinerariesFromBackend() {
   try {
     const res = await fetch(`${API_BASE}/me`, {
@@ -39,7 +39,7 @@ export async function fetchItinerariesFromBackend() {
   }
 }
 
-// Delete itinerary by ID
+// Deleting itinerary by ID
 export async function deleteItinerary(itineraryId) {
   try {
     const res = await fetch(`${API_BASE}/${itineraryId}`, {
@@ -54,7 +54,7 @@ export async function deleteItinerary(itineraryId) {
   }
 }
 
-// Update an existing itinerary by service ID
+// Updating an existing itinerary by service ID
 export async function updateItinerary(serviceId, updatedFields) {
   try {
     const res = await fetch(`${API_BASE}/${serviceId}`, {
